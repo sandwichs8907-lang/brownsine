@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaming System — Tic Tac Toe & Word Guess</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a0f;
+    --panel: #0a1520;
+    --border: #0ff;
+    --border2: #f0f;
+    --cyan: #00ffff;
+    --magenta: #ff00ff;
+    --yellow: #ffee00;
+    --green: #00ff88;
+    --red: #ff3355;
+    --blue: #4488ff;
+    --white: #e8f4ff;
+    --dim: #4a6070;
+    --glow-c: 0 0 10px #00ffff80, 0 0 30px #00ffff30;
+    --glow-m: 0 0 10px #ff00ff80, 0 0 30px #ff00ff30;
+    --glow-y: 0 0 10px #ffee0080, 0 0 30px #ffee0030;
+    --glow-g: 0 0 10px #00ff8880, 0 0 30px #00ff8830;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, #001a2a 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, #1a0020 0%, transparent 60%),
+      linear-gradient(180deg, #050a0f 0%, #080f18 100%);
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    padding: 20px 0 10px;
+    border-bottom: 1px solid var(--dim);
+    position: relative;
+  }
+  .header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(18px, 3vw, 32px);
+    font-weight: 900;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+  }
+  .header .sub { font-size: 11px; color: var(--dim); letter-spacing: 3px; margin-top: 4px; }
+
+  .cyan-text { color: var(--cyan); text-shadow: var(--glow-c); }
+  .magenta-text { color: var(--magenta); text-shadow: var(--glow-m); }
+  .yellow-text { color: var(--yellow); text-shadow: var(--glow-y); }
+  .green-text { color: var(--green); text-shadow: var(--glow-g); }
+  .red-text { color: var(--red); }
+  .dim-text { color: var(--dim); }
+
+  /* ===== LOADING ===== */
+  #loading {
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+  }
+  .loading-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(24px, 5vw, 52px);
+    font-weight: 900;
+    letter-spacing: 8px;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+  }
+  .loading-sub {
+    font-size: 13px;
+    letter-spacing: 5px;
+    color: var(--yellow);
+    text-shadow: var(--glow-y);
+  }
+  .progress-wrap {
+    width: min(500px, 80vw);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .progress-bar {
+    height: 20px;
+    background: #0a1520;
+    border: 1px solid var(--cyan);
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--green));
+    box-shadow: 0 0 15px var(--cyan);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .progress-label {
+    text-align: right;
+    font-size: 12px;
+    color: var(--green);
+  }
+  .loading-msg { font-size: 12px; color: var(--dim); letter-spacing: 2px; }
+
+  /* ===== MAIN MENU ===== */
+  #menu {
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    padding: 20px;
+  }
+  .menu-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 6vw, 60px);
+    font-weight: 900;
+    letter-spacing: 10px;
+    text-align: center;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: pulse-logo 4s ease-in-out infinite;
+  }
+  @keyframes pulse-logo {
+    0%,100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
+  }
+  .menu-tagline {
+    text-align: center;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: 4px;
+    margin-bottom: 40px;
+  }
+  .menu-box {
+    border: 1px solid var(--dim);
+    padding: 40px 60px;
+    position: relative;
+    max-width: 500px;
+    width: 100%;
+  }
+  .menu-box::before, .menu-box::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+  }
+  .menu-box::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+  .menu-box::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--magenta); border-right: 2px solid var(--magenta); }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    margin: 4px 0;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .menu-item:hover, .menu-item.focused {
+    border-color: var(--cyan);
+    background: rgba(0,255,255,0.06);
+    box-shadow: inset 0 0 20px rgba(0,255,255,0.05);
+  }
+  .menu-item:hover .menu-num { color: var(--yellow); text-shadow: var(--glow-y); }
+  .menu-num {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--dim);
+    min-width: 30px;
+    transition: color 0.2s;
+  }
+  .menu-label {
+    font-size: 14px;
+    letter-spacing: 2px;
+    transition: color 0.2s;
+  }
+  .menu-item:hover .menu-label { color: var(--cyan); }
+
+  .menu-hint {
+    text-align: center;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-top: 30px;
+  }
+  .menu-footer {
+    text-align: center;
+    color: var(--dim);
+    font-size: 10px;
+    margin-top: 40px;
+    letter-spacing: 2px;
+  }
+
+  /* ===== SETUP ===== */
+  #setup {
+    justify-content: center;
+    align-items: center;
+    padding: 30px 20px;
+  }
+  .setup-box {
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 30px rgba(0,255,255,0.1);
+    padding: 40px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .setup-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--yellow);
+    text-shadow: var(--glow-y);
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .form-input {
+    width: 100%;
+    background: #050a0f;
+    border: 1px solid var(--dim);
+    color: var(--cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+  .form-input::placeholder { color: var(--dim); }
+
+  .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+  .radio-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--dim);
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    min-width: 80px;
+  }
+  .radio-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  .radio-btn.selected { border-color: var(--cyan); color: var(--cyan); background: rgba(0,255,255,0.1); box-shadow: 0 0 10px rgba(0,255,255,0.2); }
+
+  .btn {
+    display: inline-block;
+    padding: 12px 30px;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    background: transparent;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn:hover { background: rgba(0,255,255,0.12); box-shadow: 0 0 20px rgba(0,255,255,0.3); }
+  .btn-magenta { border-color: var(--magenta); color: var(--magenta); }
+  .btn-magenta:hover { background: rgba(255,0,255,0.12); box-shadow: 0 0 20px rgba(255,0,255,0.3); }
+  .btn-yellow { border-color: var(--yellow); color: var(--yellow); }
+  .btn-yellow:hover { background: rgba(255,238,0,0.12); box-shadow: 0 0 20px rgba(255,238,0,0.3); }
+  .btn-red { border-color: var(--red); color: var(--red); }
+  .btn-red:hover { background: rgba(255,51,85,0.12); }
+  .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
+
+  /* ===== TIC TAC TOE ===== */
+  #ttt { padding: 20px; }
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--dim);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .player-info { text-align: center; }
+  .player-name { font-size: 13px; letter-spacing: 2px; }
+  .player-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 900;
+  }
+  .player-symbol { font-size: 11px; color: var(--dim); }
+  .turn-indicator {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+  .turn-indicator .turn-label { color: var(--dim); font-size: 10px; margin-bottom: 4px; }
+  .turn-name { font-family: 'Orbitron', monospace; font-size: 16px; }
+  .move-count { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+  .ttt-main {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .ttt-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: min(330px, 90vw);
+  }
+  .ttt-cell {
+    aspect-ratio: 1;
+    background: var(--panel);
+    border: 1px solid var(--dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 8vw, 56px);
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .ttt-cell:hover:not(.filled):not(.ended) {
+    border-color: var(--yellow);
+    background: rgba(255,238,0,0.06);
+  }
+  .ttt-cell.x { color: var(--cyan); text-shadow: var(--glow-c); border-color: var(--cyan); }
+  .ttt-cell.o { color: var(--magenta); text-shadow: var(--glow-m); border-color: var(--magenta); }
+  .ttt-cell.win-cell { animation: win-flash 0.6s ease-in-out 3; }
+  @keyframes win-flash {
+    0%,100% { background: transparent; }
+    50% { background: rgba(255,238,0,0.2); }
+  }
+
+  .ttt-panel { max-width: 240px; }
+  .ttt-status {
+    border: 1px solid var(--dim);
+    padding: 16px;
+    margin-bottom: 16px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 1px;
+    line-height: 1.6;
+  }
+  .ttt-controls { font-size: 11px; color: var(--dim); line-height: 2; }
+  .ttt-controls span { color: var(--yellow); }
+
+  /* ===== WORD GUESS ===== */
+  #wg { padding: 20px; }
+  .wg-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .wg-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .wg-stat { text-align: center; }
+  .wg-stat-label { font-size: 10px; letter-spacing: 3px; color: var(--dim); }
+  .wg-stat-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .wg-word {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 20px;
+    border: 1px solid var(--dim);
+    width: 100%;
+  }
+  .wg-letter {
+    width: 44px;
+    height: 54px;
+    border-bottom: 2px solid var(--cyan);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: var(--glow-c);
+    transition: all 0.3s;
+  }
+  .wg-letter.revealed { animation: reveal 0.3s ease-out; }
+  @keyframes reveal {
+    0% { transform: scale(1.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .hangman-area {
+    width: 180px;
+    height: 180px;
+    position: relative;
+  }
+  .hangman-svg { width: 100%; height: 100%; }
+
+  .wg-attempts {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .attempt-dot {
+    width: 14px; height: 14px;
+    border: 1px solid var(--red);
+    transition: all 0.3s;
+  }
+  .attempt-dot.used { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  .wg-guessed {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-width: 400px;
+  }
+  .guess-chip {
+    padding: 4px 10px;
+    border: 1px solid;
+    font-size: 14px;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    animation: pop 0.2s ease-out;
+  }
+  @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+  .guess-chip.hit { border-color: var(--green); color: var(--green); }
+  .guess-chip.miss { border-color: var(--red); color: var(--red); }
+
+  .keyboard {
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: 4px;
+    max-width: 600px;
+    width: 100%;
+  }
+  .key {
+    aspect-ratio: 1;
+    border: 1px solid var(--dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: clamp(9px, 1.5vw, 14px);
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    transition: all 0.15s;
+    color: var(--white);
+  }
+  .key:hover:not(.used-key) { border-color: var(--yellow); color: var(--yellow); background: rgba(255,238,0,0.08); }
+  .key.used-key.hit-key { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.1); }
+  .key.used-key.miss-key { border-color: #333; color: #333; background: #111; cursor: not-allowed; }
+
+  /* ===== HISTORY ===== */
+  #hist { padding: 20px; }
+  .hist-main { max-width: 900px; margin: 0 auto; }
+  .hist-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .hist-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    border-bottom: 1px solid var(--dim);
+    text-transform: uppercase;
+  }
+  .hist-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .hist-table tr:hover td { background: rgba(0,255,255,0.03); }
+  .empty-hist { text-align: center; padding: 60px 0; color: var(--dim); font-size: 13px; letter-spacing: 2px; }
+
+  /* ===== SETTINGS ===== */
+  #settings { padding: 20px; }
+  .settings-main { max-width: 600px; margin: 0 auto; }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .setting-label { font-size: 13px; letter-spacing: 2px; }
+  .setting-desc { font-size: 10px; color: var(--dim); letter-spacing: 1px; margin-top: 3px; }
+  .toggle {
+    width: 52px; height: 26px;
+    background: #111;
+    border: 1px solid var(--dim);
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle.on { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,255,255,0.3); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: var(--dim);
+    transition: all 0.2s;
+  }
+  .toggle.on::after { left: 29px; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+
+  .seg-control { display: flex; gap: 0; }
+  .seg-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--dim);
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: -1px;
+  }
+  .seg-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  .seg-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,255,255,0.1); }
+
+  /* ===== OVERLAY ===== */
+  .overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .overlay.show { display: flex; }
+  .overlay-box {
+    border: 1px solid var(--yellow);
+    box-shadow: 0 0 40px rgba(255,238,0,0.2);
+    padding: 40px;
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn {
+    0% { transform: translateY(-30px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .overlay-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+  }
+  .overlay-msg { font-size: 14px; color: var(--white); margin-bottom: 24px; line-height: 1.8; }
+  .overlay-score {
+    font-family: 'Orbitron', monospace;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--yellow);
+    text-shadow: var(--glow-y);
+    margin-bottom: 24px;
+  }
+
+  /* ===== BACK BUTTON ===== */
+  .back-btn {
+    position: absolute;
+    top: 16px; left: 16px;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 2px;
+    transition: color 0.2s;
+    z-index: 10;
+  }
+  .back-btn:hover { color: var(--cyan); }
+
+  /* ===== ABOUT ===== */
+  #about { padding: 20px; }
+  .about-main { max-width: 700px; margin: 0 auto; }
+  .about-section { margin-bottom: 30px; padding: 20px; border: 1px solid var(--dim); }
+  .about-section h3 { font-family: 'Orbitron', monospace; font-size: 14px; letter-spacing: 3px; margin-bottom: 12px; }
+  .about-section p, .about-section li { font-size: 12px; color: var(--white); line-height: 2; letter-spacing: 1px; }
+  .about-section ul { padding-left: 20px; }
+
+  .page-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(14px, 3vw, 22px);
+    letter-spacing: 6px;
+    text-align: center;
+    padding: 20px;
+    color: var(--yellow);
+    text-shadow: var(--glow-y);
+  }
+
+  /* ===== DECORATIVE CORNERS ===== */
+  .corner-decor {
+    position: fixed;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .corner-decor.tl { top: 8px; left: 8px; }
+  .corner-decor.tr { top: 8px; right: 8px; }
+  .corner-decor.bl { bottom: 8px; left: 8px; }
+  .corner-decor.br { bottom: 8px; right: 8px; }
+
+  @media (max-width: 500px) {
+    .ttt-main { gap: 20px; }
+    .ttt-panel { max-width: 100%; width: 100%; }
+    .keyboard { grid-template-columns: repeat(9, 1fr); }
+    .menu-box { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="corner-decor tl">SYS v1.0</div>
+<div class="corner-decor tr" id="clock">00:00:00</div>
+<div class="corner-decor bl">GAMING SYSTEM</div>
+<div class="corner-decor br">© 2024</div>
+
+<!-- LOADING SCREEN -->
+<div class="screen active" id="loading">
+  <div style="text-align:center;">
+    <div class="loading-title">GAMING SYSTEM</div>
+    <div class="loading-sub" style="margin-top:8px;">TIC TAC TOE & WORD GUESS</div>
+  </div>
+  <div class="progress-wrap">
+    <div style="font-size:11px; letter-spacing:3px; color:var(--dim);" id="loading-msg">INITIALIZING...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-label" id="progress-pct">0%</div>
+  </div>
+  <div class="loading-msg" id="loading-status">PLEASE WAIT...</div>
+</div>
+
+<!-- MAIN MENU -->
+<div class="screen" id="menu">
+  <div class="menu-logo">GAME HUB</div>
+  <div class="menu-tagline">SELECT YOUR GAME</div>
+  <div class="menu-box">
+    <div class="menu-item" onclick="showScreen('setup-ttt')">
+      <div class="menu-num">01</div>
+      <div>
+        <div class="menu-label cyan-text">TIC TAC TOE</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">3x3 STRATEGY · VS HUMAN OR AI</div>
+      </div>
+    </div>
+    <div class="menu-item" onclick="showScreen('wg')">
+      <div class="menu-num">02</div>
+      <div>
+        <div class="menu-label magenta-text">WORD GUESS</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">HANGMAN STYLE · COMPUTER TERMS</div>
+      </div>
+    </div>
+    <div class="menu-item" onclick="showScreen('hist')">
+      <div class="menu-num">03</div>
+      <div>
+        <div class="menu-label yellow-text">GAME HISTORY</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">VIEW PAST GAME RECORDS</div>
+      </div>
+    </div>
+    <div class="menu-item" onclick="showScreen('settings')">
+      <div class="menu-num">04</div>
+      <div>
+        <div class="menu-label green-text">SETTINGS</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">CONFIGURE GAME OPTIONS</div>
+      </div>
+    </div>
+    <div class="menu-item" onclick="showScreen('about')">
+      <div class="menu-num">05</div>
+      <div>
+        <div class="menu-label" style="color:var(--blue);">ABOUT</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">GAME INFO & CONTROLS</div>
+      </div>
+    </div>
+  </div>
+  <div class="menu-hint">CLICK OR PRESS [1-5] TO SELECT</div>
+  <div class="menu-footer">GAMING SYSTEM · VERSION 1.0 · PRESS ESC TO QUIT</div>
+  <div class="menu-footer" style="margin-top:10px;">Made by <span style="color:#ff00ff; text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff; font-weight:bold; letter-spacing:2px;">Sania Munir</span></div>
+</div>
+
+<!-- TTT SETUP -->
+<div class="screen" id="setup-ttt">
+  <div class="back-btn" onclick="showScreen('menu')">← MENU</div>
+  <div style="display:flex;justify-content:center;align-items:center;flex:1;padding:20px;">
+    <div class="setup-box">
+      <div class="setup-title">TIC TAC TOE SETUP</div>
+      <div class="form-group">
+        <label class="form-label">PLAYER 1 NAME</label>
+        <input class="form-input" id="p1name" placeholder="Player 1" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label class="form-label">OPPONENT TYPE</label>
+        <div class="radio-group">
+          <div class="radio-btn selected" id="opt-human" onclick="selectOpponent('human')">HUMAN</div>
+          <div class="radio-btn" id="opt-computer" onclick="selectOpponent('computer')">COMPUTER</div>
+        </div>
+      </div>
+      <div class="form-group" id="p2-name-group">
+        <label class="form-label">PLAYER 2 NAME</label>
+        <input class="form-input" id="p2name" placeholder="Player 2" maxlength="20">
+      </div>
+      <div class="form-group" id="difficulty-group" style="display:none;">
+        <label class="form-label">DIFFICULTY</label>
+        <div class="radio-group">
+          <div class="radio-btn" id="diff-easy" onclick="selectDiff('easy')">EASY</div>
+          <div class="radio-btn selected" id="diff-medium" onclick="selectDiff('medium')">MEDIUM</div>
+          <div class="radio-btn" id="diff-hard" onclick="selectDiff('hard')">HARD</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-yellow" onclick="startTTT()">START GAME</button>
+        <button class="btn btn-magenta" onclick="showScreen('menu')">BACK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TIC TAC TOE GAME -->
+<div class="screen" id="ttt">
+  <div class="back-btn" onclick="confirmExit('ttt')">← MENU</div>
+  <div class="game-header">
+    <div class="player-info">
+      <div class="player-name cyan-text" id="ttt-p1-name">Player 1</div>
+      <div class="player-score cyan-text" id="ttt-p1-score">0</div>
+      <div class="player-symbol" id="ttt-p1-sym">X</div>
+    </div>
+    <div class="turn-indicator">
+      <div class="turn-label">CURRENT TURN</div>
+      <div class="turn-name yellow-text" id="ttt-turn">—</div>
+      <div class="move-count" id="ttt-moves">MOVES: 0/9</div>
+    </div>
+    <div class="player-info">
+      <div class="player-name magenta-text" id="ttt-p2-name">Player 2</div>
+      <div class="player-score magenta-text" id="ttt-p2-score">0</div>
+      <div class="player-symbol" id="ttt-p2-sym">O</div>
+    </div>
+  </div>
+  <div class="ttt-main">
+    <div class="ttt-board" id="ttt-board">
+      <!-- cells injected by JS -->
+    </div>
+    <div class="ttt-panel">
+      <div class="ttt-status" id="ttt-status">
+        <span class="yellow-text">GAME IN PROGRESS</span>
+      </div>
+      <div class="ttt-controls">
+        <div><span>CLICK</span> — Place mark</div>
+        <div><span>R</span> — Restart round</div>
+        <div><span>ESC</span> — Back to menu</div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn" onclick="tttReset()">RESTART (R)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORD GUESS GAME -->
+<div class="screen" id="wg">
+  <div class="back-btn" onclick="confirmExit('wg')">← MENU</div>
+  <div class="page-title">WORD GUESS</div>
+  <div class="wg-main">
+    <div class="wg-header">
+      <div class="wg-stat">
+        <div class="wg-stat-label">SCORE</div>
+        <div class="wg-stat-val green-text" id="wg-score">0</div>
+      </div>
+      <div class="wg-stat">
+        <div class="wg-stat-label">CATEGORY</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:4px;">COMPUTER TERMS</div>
+      </div>
+      <div class="wg-stat">
+        <div class="wg-stat-label">ATTEMPTS LEFT</div>
+        <div class="wg-stat-val red-text" id="wg-attempts">6</div>
+      </div>
+    </div>
+
+    <!-- Hangman drawing -->
+    <div class="hangman-area">
+      <svg class="hangman-svg" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <!-- Gallows always visible -->
+        <line x1="20" y1="170" x2="160" y2="170" stroke="#2a3a4a" stroke-width="3"/>
+        <line x1="60" y1="170" x2="60" y2="20" stroke="#2a3a4a" stroke-width="3"/>
+        <line x1="60" y1="20" x2="110" y2="20" stroke="#2a3a4a" stroke-width="3"/>
+        <line x1="110" y1="20" x2="110" y2="40" stroke="#2a3a4a" stroke-width="3"/>
+        <!-- Body parts (shown based on wrong guesses) -->
+        <circle id="hm-head" cx="110" cy="53" r="13" stroke="#ff3355" stroke-width="2" fill="none" opacity="0"/>
+        <line id="hm-body" x1="110" y1="66" x2="110" y2="110" stroke="#ff3355" stroke-width="2" opacity="0"/>
+        <line id="hm-larm" x1="110" y1="76" x2="88" y2="96" stroke="#ff3355" stroke-width="2" opacity="0"/>
+        <line id="hm-rarm" x1="110" y1="76" x2="132" y2="96" stroke="#ff3355" stroke-width="2" opacity="0"/>
+        <line id="hm-lleg" x1="110" y1="110" x2="90" y2="138" stroke="#ff3355" stroke-width="2" opacity="0"/>
+        <line id="hm-rleg" x1="110" y1="110" x2="130" y2="138" stroke="#ff3355" stroke-width="2" opacity="0"/>
+      </svg>
+    </div>
+
+    <div class="wg-word" id="wg-word"></div>
+
+    <div style="text-align:center;">
+      <div style="font-size:10px;letter-spacing:3px;color:var(--dim);margin-bottom:8px;">GUESSED LETTERS</div>
+      <div class="wg-guessed" id="wg-guessed">
+        <span style="color:var(--dim);font-size:12px;">NONE YET</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;">
+      <div style="font-size:10px;letter-spacing:3px;color:var(--dim);margin-bottom:10px;">KEYBOARD — CLICK OR PRESS KEY</div>
+      <div class="keyboard" id="wg-keyboard"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="screen" id="hist">
+  <div class="back-btn" onclick="showScreen('menu')">← MENU</div>
+  <div class="page-title">GAME HISTORY</div>
+  <div class="hist-main">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div style="font-size:11px;color:var(--dim);" id="hist-count">TOTAL: 0 GAMES</div>
+      <button class="btn btn-red" onclick="clearHistory()">CLEAR HISTORY</button>
+    </div>
+    <table class="hist-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>GAME</th>
+          <th>WORD / PLAYER 1</th>
+          <th>PLAYER 2</th>
+          <th>RESULT</th>
+          <th>SCORE</th>
+          <th>DATE & TIME</th>
+        </tr>
+      </thead>
+      <tbody id="hist-body"></tbody>
+    </table>
+    <div id="hist-empty" class="empty-hist">NO GAME HISTORY YET<br><br><span style="font-size:11px;">PLAY SOME GAMES TO SEE RECORDS HERE</span></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="settings">
+  <div class="back-btn" onclick="showScreen('menu')">← MENU</div>
+  <div class="page-title">SETTINGS</div>
+  <div class="settings-main">
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">SOUND EFFECTS</div>
+        <div class="setting-desc">Enable audio feedback</div>
+      </div>
+      <div class="toggle" id="toggle-sound" onclick="toggleSetting('sound')"></div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">SAVE HISTORY</div>
+        <div class="setting-desc">Record completed games</div>
+      </div>
+      <div class="toggle on" id="toggle-history" onclick="toggleSetting('history')"></div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">PLAYER 1 SYMBOL</div>
+        <div class="setting-desc">Symbol used in Tic Tac Toe</div>
+      </div>
+      <div class="seg-control">
+        <div class="seg-btn active" id="sym1-x" onclick="setSymbol(1,'X')">X</div>
+        <div class="seg-btn" id="sym1-o" onclick="setSymbol(1,'O')">O</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">PLAYER 2 SYMBOL</div>
+        <div class="setting-desc">Symbol used in Tic Tac Toe</div>
+      </div>
+      <div class="seg-control">
+        <div class="seg-btn" id="sym2-x" onclick="setSymbol(2,'X')">X</div>
+        <div class="seg-btn active" id="sym2-o" onclick="setSymbol(2,'O')">O</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">DEFAULT AI DIFFICULTY</div>
+        <div class="setting-desc">Computer opponent strength</div>
+      </div>
+      <div class="seg-control">
+        <div class="seg-btn" id="dif-easy" onclick="setDefaultDiff('easy')">EASY</div>
+        <div class="seg-btn active" id="dif-medium" onclick="setDefaultDiff('medium')">MEDIUM</div>
+        <div class="seg-btn" id="dif-hard" onclick="setDefaultDiff('hard')">HARD</div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:30px;">
+      <button class="btn btn-yellow" onclick="resetSettings()">RESET DEFAULTS</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div class="screen" id="about">
+  <div class="back-btn" onclick="showScreen('menu')">← MENU</div>
+  <div class="page-title">ABOUT THE GAMES</div>
+  <div class="about-main">
+    <div class="about-section">
+      <h3 class="cyan-text">TIC TAC TOE</h3>
+      <ul>
+        <li>Classic 3×3 strategy game</li>
+        <li>Play against a friend or computer AI</li>
+        <li>Three AI difficulty levels: Easy, Medium, Hard</li>
+        <li>Score tracking across multiple rounds</li>
+        <li>Win detection for rows, columns, and diagonals</li>
+      </ul>
+    </div>
+    <div class="about-section">
+      <h3 class="magenta-text">WORD GUESS</h3>
+      <ul>
+        <li>Hangman-style word guessing game</li>
+        <li>All words are computer/tech related terms</li>
+        <li>6 attempts per word — each wrong guess draws a body part</li>
+        <li>Score = remaining attempts × 10 per win</li>
+        <li>Click keyboard or press letter keys to guess</li>
+      </ul>
+    </div>
+    <div class="about-section">
+      <h3 class="yellow-text">CONTROLS</h3>
+      <ul>
+        <li>CLICK — Primary interaction in all games</li>
+        <li>LETTER KEYS — Guess letters in Word Guess</li>
+        <li>R — Restart round in Tic Tac Toe</li>
+        <li>ESC — Return to menu from any game</li>
+        <li>NUMBER KEYS [1–5] — Navigate main menu</li>
+      </ul>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="showScreen('menu')">BACK TO MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="overlay-title yellow-text" id="overlay-title">GAME OVER</div>
+    <div class="overlay-score" id="overlay-score"></div>
+    <div class="overlay-msg" id="overlay-msg"></div>
+    <div class="btn-row">
+      <button class="btn btn-yellow" id="overlay-btn1" onclick="overlayAction1()">PLAY AGAIN</button>
+      <button class="btn btn-magenta" id="overlay-btn2" onclick="overlayAction2()">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const settings = {
+  sound: false,
+  saveHistory: true,
+  p1sym: 'X',
+  p2sym: 'O',
+  defaultDiff: 'medium'
+};
+
+// Load history from localStorage (permanent storage)
+let gameHistory = JSON.parse(localStorage.getItem('sania_game_history') || '[]');
+let gameIdCounter = gameHistory.length > 0 ? Math.max(...gameHistory.map(r => r.id)) : 0;
+
+// TTT state
+let ttt = {
+  board: Array(9).fill(''),
+  currentPlayer: 'X',
+  p1: 'Player 1', p2: 'Player 2',
+  p1score: 0, p2score: 0,
+  moves: 0,
+  ended: false,
+  vsComputer: false,
+  diff: 'medium',
+  startTime: 0
+};
+
+// Word Guess state
+let wg = {
+  words: ['COMPUTER','PROGRAMMING','ALGORITHM','DEVELOPER','SOFTWARE','HARDWARE',
+          'NETWORK','DATABASE','SECURITY','INTERNET','WINDOWS','KEYBOARD',
+          'MONITOR','LANGUAGE','PYTHON','JAVASCRIPT','FUNCTION','VARIABLE',
+          'CONSTANT','OPERATOR','COMPILER','DEBUGGING','INTERFACE','PROCESSOR',
+          'MEMORY','STORAGE','PROTOCOL','ENCRYPTION','FRAMEWORK','LIBRARY'],
+  secret: '',
+  guessed: [],
+  attemptsLeft: 6,
+  score: 0,
+  ended: false,
+  won: false
+};
+
+// Current overlay callbacks
+let overlayAction1 = () => {};
+let overlayAction2 = () => {};
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toTimeString().slice(0,8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// SCREEN NAVIGATION
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+
+  if (id === 'hist') renderHistory();
+  if (id === 'wg') initWG();
+}
+
+// ============================================================
+// LOADING SCREEN
+// ============================================================
+const loadingMsgs = [
+  'INITIALIZING SYSTEMS...',
+  'LOADING GAME ASSETS...',
+  'CONFIGURING AI ENGINE...',
+  'PREPARING WORD DATABASE...',
+  'LOADING COMPLETE!'
+];
+let loadPct = 0;
+const loadInterval = setInterval(() => {
+  loadPct += 2;
+  const fill = document.getElementById('progress-fill');
+  const pct = document.getElementById('progress-pct');
+  const msg = document.getElementById('loading-msg');
+  if (fill) fill.style.width = loadPct + '%';
+  if (pct) pct.textContent = loadPct + '%';
+  if (msg) msg.textContent = loadingMsgs[Math.floor((loadPct/100)*4)];
+  if (loadPct >= 100) {
+    clearInterval(loadInterval);
+    setTimeout(() => showScreen('menu'), 400);
+  }
+}, 25);
+
+// ============================================================
+// KEYBOARD SHORTCUTS (MENU)
+// ============================================================
+document.addEventListener('keydown', e => {
+  const active = document.querySelector('.screen.active');
+  if (!active) return;
+  const id = active.id;
+
+  if (e.key === 'Escape') {
+    if (id === 'ttt' || id === 'wg') confirmExit(id);
+    else if (id !== 'menu' && id !== 'loading') showScreen('menu');
+    return;
+  }
+
+  if (id === 'menu') {
+    if (e.key === '1') showScreen('setup-ttt');
+    if (e.key === '2') showScreen('wg');
+    if (e.key === '3') showScreen('hist');
+    if (e.key === '4') showScreen('settings');
+    if (e.key === '5') showScreen('about');
+  }
+
+  if (id === 'ttt') {
+    if (e.key === 'r' || e.key === 'R') tttReset();
+  }
+
+  if (id === 'wg') {
+    if (e.key === 'r' || e.key === 'R') { initWG(); return; }
+    if (/^[a-zA-Z]$/.test(e.key)) wgGuess(e.key.toUpperCase());
+  }
+});
+
+// ============================================================
+// TTT SETUP
+// ============================================================
+let tttOpponent = 'human';
+let tttDiff = 'medium';
+
+function selectOpponent(type) {
+  tttOpponent = type;
+  document.getElementById('opt-human').classList.toggle('selected', type === 'human');
+  document.getElementById('opt-computer').classList.toggle('selected', type === 'computer');
+  document.getElementById('p2-name-group').style.display = type === 'human' ? '' : 'none';
+  document.getElementById('difficulty-group').style.display = type === 'computer' ? '' : 'none';
+}
+
+function selectDiff(d) {
+  tttDiff = d;
+  ['easy','medium','hard'].forEach(x => {
+    document.getElementById('diff-'+x).classList.toggle('selected', x === d);
+  });
+}
+
+function startTTT() {
+  const p1 = document.getElementById('p1name').value.trim() || 'Player 1';
+  const p2 = tttOpponent === 'computer' ? 'Computer' :
+             (document.getElementById('p2name').value.trim() || 'Player 2');
+
+  ttt.p1 = p1; ttt.p2 = p2;
+  ttt.p1score = 0; ttt.p2score = 0;
+  ttt.vsComputer = tttOpponent === 'computer';
+  ttt.diff = tttDiff;
+  ttt.startTime = Date.now();
+
+  tttReset(false);
+  buildTTTBoard();
+  showScreen('ttt');
+  updateTTTHeader();
+}
+
+// ============================================================
+// TTT GAME
+// ============================================================
+function buildTTTBoard() {
+  const board = document.getElementById('ttt-board');
+  board.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'ttt-cell';
+    cell.dataset.i = i;
+    cell.addEventListener('click', () => tttClick(i));
+    board.appendChild(cell);
+  }
+}
+
+function tttReset(updateScores = true) {
+  ttt.board = Array(9).fill('');
+  ttt.currentPlayer = settings.p1sym;
+  ttt.moves = 0;
+  ttt.ended = false;
+  ttt.startTime = Date.now();
+
+  document.querySelectorAll('.ttt-cell').forEach(c => {
+    c.textContent = '';
+    c.className = 'ttt-cell';
+  });
+
+  document.getElementById('ttt-status').innerHTML = '<span class="yellow-text">GAME IN PROGRESS</span>';
+  updateTTTHeader();
+}
+
+function updateTTTHeader() {
+  document.getElementById('ttt-p1-name').textContent = ttt.p1;
+  document.getElementById('ttt-p2-name').textContent = ttt.p2;
+  document.getElementById('ttt-p1-score').textContent = ttt.p1score;
+  document.getElementById('ttt-p2-score').textContent = ttt.p2score;
+  document.getElementById('ttt-p1-sym').textContent = settings.p1sym;
+  document.getElementById('ttt-p2-sym').textContent = settings.p2sym;
+  document.getElementById('ttt-moves').textContent = `MOVES: ${ttt.moves}/9`;
+
+  const isP1 = ttt.currentPlayer === settings.p1sym;
+  const turnEl = document.getElementById('ttt-turn');
+  turnEl.textContent = isP1 ? ttt.p1 : ttt.p2;
+  turnEl.className = 'turn-name ' + (isP1 ? 'cyan-text' : 'magenta-text');
+}
+
+function tttClick(i) {
+  if (ttt.ended || ttt.board[i] !== '') return;
+  tttPlace(i);
+}
+
+function tttPlace(i) {
+  const sym = ttt.currentPlayer;
+  ttt.board[i] = sym;
+  ttt.moves++;
+
+  const cell = document.querySelector(`.ttt-cell[data-i="${i}"]`);
+  cell.textContent = sym;
+  cell.classList.add('filled', sym === settings.p1sym ? 'x' : 'o');
+
+  const winner = checkTTTWin();
+  if (winner) {
+    ttt.ended = true;
+    highlightWin(winner.cells);
+
+    if (sym === settings.p1sym) {
+      ttt.p1score++;
+      showTTTStatus(`${ttt.p1} WINS! 🎉`, 'cyan-text');
+    } else {
+      ttt.p2score++;
+      showTTTStatus(`${ttt.p2} WINS! 🎉`, 'magenta-text');
+    }
+
+    if (settings.saveHistory) saveRecord('Tic Tac Toe', ttt.p1, ttt.p2,
+      sym === settings.p1sym ? ttt.p1 : ttt.p2,
+      ttt.p1score + ttt.p2score);
+
+    updateTTTHeader();
+    setTimeout(() => showGameOverOverlay(
+      sym === settings.p1sym ? ttt.p1 : ttt.p2,
+      `${ttt.p1}: ${ttt.p1score}  —  ${ttt.p2}: ${ttt.p2score}`,
+      tttReset, () => showScreen('menu')
+    ), 600);
+    return;
+  }
+
+  if (ttt.moves === 9) {
+    ttt.ended = true;
+    showTTTStatus("IT'S A DRAW!", 'yellow-text');
+    if (settings.saveHistory) saveRecord('Tic Tac Toe', ttt.p1, ttt.p2, 'Draw', 0);
+    updateTTTHeader();
+    setTimeout(() => showGameOverOverlay(
+      'DRAW!', `${ttt.p1}: ${ttt.p1score}  —  ${ttt.p2}: ${ttt.p2score}`,
+      tttReset, () => showScreen('menu')
+    ), 400);
+    return;
+  }
+
+  ttt.currentPlayer = ttt.currentPlayer === settings.p1sym ? settings.p2sym : settings.p1sym;
+  updateTTTHeader();
+
+  if (ttt.vsComputer && ttt.currentPlayer === settings.p2sym && !ttt.ended) {
+    showTTTStatus('COMPUTER THINKING...', 'dim-text');
+    setTimeout(computerTTTMove, 400);
+  }
+}
+
+function showTTTStatus(msg, cls) {
+  document.getElementById('ttt-status').innerHTML = `<span class="${cls}">${msg}</span>`;
+}
+
+function checkTTTWin() {
+  const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const [a,b,c] of wins) {
+    if (ttt.board[a] && ttt.board[a] === ttt.board[b] && ttt.board[a] === ttt.board[c]) {
+      return { player: ttt.board[a], cells: [a,b,c] };
+    }
+  }
+  return null;
+}
+
+function highlightWin(cells) {
+  cells.forEach(i => {
+    document.querySelector(`.ttt-cell[data-i="${i}"]`).classList.add('win-cell');
+  });
+}
+
+function computerTTTMove() {
+  if (ttt.ended) return;
+  let move = -1;
+
+  if (ttt.diff === 'easy') {
+    const empty = ttt.board.map((v,i) => v === '' ? i : -1).filter(x => x >= 0);
+    move = empty[Math.floor(Math.random() * empty.length)];
+  } else {
+    // Try to win
+    move = findBestMove(settings.p2sym);
+    // Block player
+    if (move === -1) move = findBestMove(settings.p1sym);
+    // Take center
+    if (move === -1 && ttt.board[4] === '') move = 4;
+    // Take corner
+    if (move === -1) {
+      const corners = [0,2,6,8].filter(i => ttt.board[i] === '');
+      if (corners.length) move = corners[Math.floor(Math.random() * corners.length)];
+    }
+    // Hard: take side
+    if (move === -1 && ttt.diff === 'hard') {
+      const sides = [1,3,5,7].filter(i => ttt.board[i] === '');
+      if (sides.length) move = sides[0];
+    }
+    // Random fallback
+    if (move === -1) {
+      const empty = ttt.board.map((v,i) => v === '' ? i : -1).filter(x => x >= 0);
+      move = empty[Math.floor(Math.random() * empty.length)];
+    }
+  }
+
+  if (move !== -1) tttPlace(move);
+}
+
+function findBestMove(sym) {
+  for (let i = 0; i < 9; i++) {
+    if (ttt.board[i] === '') {
+      ttt.board[i] = sym;
+      const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      const win = wins.some(([a,b,c]) => ttt.board[a] && ttt.board[a]===ttt.board[b] && ttt.board[a]===ttt.board[c]);
+      ttt.board[i] = '';
+      if (win) return i;
+    }
+  }
+  return -1;
+}
+
+// ============================================================
+// WORD GUESS
+// ============================================================
+function initWG() {
+  wg.secret = wg.words[Math.floor(Math.random() * wg.words.length)];
+  wg.guessed = [];
+  wg.attemptsLeft = 6;
+  wg.ended = false;
+  wg.won = false;
+
+  renderWGWord();
+  renderWGKeyboard();
+  renderWGGuessed();
+  updateHangman();
+  document.getElementById('wg-attempts').textContent = wg.attemptsLeft;
+  document.getElementById('wg-score').textContent = wg.score;
+}
+
+function renderWGWord() {
+  const el = document.getElementById('wg-word');
+  el.innerHTML = '';
+  for (const ch of wg.secret) {
+    const div = document.createElement('div');
+    div.className = 'wg-letter';
+    const revealed = wg.guessed.includes(ch);
+    div.textContent = revealed ? ch : '';
+    if (revealed) div.classList.add('revealed');
+    el.appendChild(div);
+  }
+}
+
+function renderWGKeyboard() {
+  const el = document.getElementById('wg-keyboard');
+  el.innerHTML = '';
+  for (let i = 0; i < 26; i++) {
+    const ch = String.fromCharCode(65 + i);
+    const key = document.createElement('div');
+    key.className = 'key';
+    key.textContent = ch;
+    key.dataset.ch = ch;
+    if (wg.guessed.includes(ch)) {
+      key.classList.add('used-key');
+      key.classList.add(wg.secret.includes(ch) ? 'hit-key' : 'miss-key');
+    }
+    key.addEventListener('click', () => wgGuess(ch));
+    el.appendChild(key);
+  }
+}
+
+function renderWGGuessed() {
+  const el = document.getElementById('wg-guessed');
+  if (wg.guessed.length === 0) {
+    el.innerHTML = '<span style="color:var(--dim);font-size:12px;">NONE YET</span>';
+    return;
+  }
+  el.innerHTML = '';
+  for (const ch of wg.guessed) {
+    const chip = document.createElement('div');
+    chip.className = 'guess-chip ' + (wg.secret.includes(ch) ? 'hit' : 'miss');
+    chip.textContent = ch;
+    el.appendChild(chip);
+  }
+}
+
+function updateHangman() {
+  const parts = ['hm-head','hm-body','hm-larm','hm-rarm','hm-lleg','hm-rleg'];
+  const wrongCount = 6 - wg.attemptsLeft;
+  parts.forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (el) el.style.opacity = idx < wrongCount ? '1' : '0';
+  });
+}
+
+function wgGuess(ch) {
+  if (wg.ended || wg.guessed.includes(ch)) return;
+  wg.guessed.push(ch);
+
+  const correct = wg.secret.includes(ch);
+  if (!correct) wg.attemptsLeft--;
+
+  document.getElementById('wg-attempts').textContent = wg.attemptsLeft;
+  updateHangman();
+  renderWGWord();
+  renderWGKeyboard();
+  renderWGGuessed();
+
+  // Check win
+  const allRevealed = [...wg.secret].every(c => wg.guessed.includes(c));
+  if (allRevealed) {
+    wg.ended = true; wg.won = true;
+    const pts = wg.attemptsLeft * 10;
+    wg.score += pts;
+    document.getElementById('wg-score').textContent = wg.score;
+
+    if (settings.saveHistory) saveRecord('Word Guess', wg.secret, '6 Attempts', 'Player Won', pts);
+
+    setTimeout(() => {
+      showGameOverOverlay('YOU WIN! 🎉', `+${pts} POINTS  |  TOTAL: ${wg.score}`,
+        initWG, () => showScreen('menu'), true);
+    }, 300);
+    return;
+  }
+
+  if (wg.attemptsLeft <= 0) {
+    wg.ended = true;
+    if (settings.saveHistory) saveRecord('Word Guess', wg.secret, '6 Attempts', 'Player Lost', 0);
+    setTimeout(() => {
+      showGameOverOverlay('GAME OVER', `THE WORD WAS: ${wg.secret}`,
+        initWG, () => showScreen('menu'), false, true);
+    }, 300);
+  }
+}
+
+// ============================================================
+// OVERLAY
+// ============================================================
+function showGameOverOverlay(title, msg, onPlayAgain, onMenu, isWin = false, isLoss = false) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-title').className = 'overlay-title ' +
+    (isWin ? 'green-text' : isLoss ? 'red-text' : 'yellow-text');
+  document.getElementById('overlay-msg').textContent = msg;
+  document.getElementById('overlay-score').textContent = '';
+
+  overlayAction1 = () => { hideOverlay(); onPlayAgain(); };
+  overlayAction2 = () => { hideOverlay(); onMenu(); };
+
+  document.getElementById('overlay').classList.add('show');
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ============================================================
+// CONFIRM EXIT
+// ============================================================
+function confirmExit(game) {
+  overlayAction1 = () => { hideOverlay(); };
+  overlayAction2 = () => { hideOverlay(); showScreen('menu'); };
+
+  document.getElementById('overlay-title').textContent = 'EXIT GAME?';
+  document.getElementById('overlay-title').className = 'overlay-title yellow-text';
+  document.getElementById('overlay-msg').textContent = 'Progress will be lost. Return to main menu?';
+  document.getElementById('overlay-score').textContent = '';
+  document.getElementById('overlay-btn1').textContent = 'KEEP PLAYING';
+  document.getElementById('overlay-btn2').textContent = 'EXIT';
+
+  document.getElementById('overlay').classList.add('show');
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function saveRecord(game, p1, p2, winner, score) {
+  const record = {
+    id: ++gameIdCounter,
+    game, p1, p2, winner, score,
+    date: new Date().toLocaleString()
+  };
+  gameHistory.push(record);
+  localStorage.setItem('sania_game_history', JSON.stringify(gameHistory));
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('hist-body');
+  const empty = document.getElementById('hist-empty');
+  document.getElementById('hist-count').textContent = `TOTAL: ${gameHistory.length} GAMES`;
+
+  if (gameHistory.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = [...gameHistory].reverse().map(r => `
+    <tr>
+      <td class="dim-text">${r.id}</td>
+      <td class="green-text">${r.game}</td>
+      <td class="cyan-text">${r.p1}</td>
+      <td class="magenta-text">${r.p2}</td>
+      <td class="${r.winner === 'Draw' ? 'yellow-text' : r.winner === 'Player Lost' ? 'red-text' : 'green-text'}">${r.winner}</td>
+      <td class="yellow-text">${r.score}</td>
+      <td class="dim-text">${r.date}</td>
+    </tr>`).join('');
+}
+
+function clearHistory() {
+  if (gameHistory.length === 0) return;
+  overlayAction1 = () => { hideOverlay(); };
+  overlayAction2 = () => { gameHistory = []; gameIdCounter = 0; localStorage.removeItem('sania_game_history'); hideOverlay(); renderHistory(); };
+
+  document.getElementById('overlay-title').textContent = 'CLEAR HISTORY?';
+  document.getElementById('overlay-title').className = 'overlay-title red-text';
+  document.getElementById('overlay-msg').textContent = 'This will permanently delete all game records.';
+  document.getElementById('overlay-score').textContent = '';
+  document.getElementById('overlay-btn1').textContent = 'CANCEL';
+  document.getElementById('overlay-btn2').textContent = 'CLEAR ALL';
+
+  document.getElementById('overlay').classList.add('show');
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function toggleSetting(key) {
+  if (key === 'sound') {
+    settings.sound = !settings.sound;
+    document.getElementById('toggle-sound').classList.toggle('on', settings.sound);
+  }
+  if (key === 'history') {
+    settings.saveHistory = !settings.saveHistory;
+    document.getElementById('toggle-history').classList.toggle('on', settings.saveHistory);
+  }
+}
+
+function setSymbol(player, sym) {
+  if (player === 1) {
+    settings.p1sym = sym;
+    document.getElementById('sym1-x').classList.toggle('active', sym === 'X');
+    document.getElementById('sym1-o').classList.toggle('active', sym === 'O');
+  } else {
+    settings.p2sym = sym;
+    document.getElementById('sym2-x').classList.toggle('active', sym === 'X');
+    document.getElementById('sym2-o').classList.toggle('active', sym === 'O');
+  }
+}
+
+function setDefaultDiff(d) {
+  settings.defaultDiff = d;
+  ['easy','medium','hard'].forEach(x =>
+    document.getElementById('dif-'+x).classList.toggle('active', x === d));
+}
+
+function resetSettings() {
+  settings.sound = false;
+  settings.saveHistory = true;
+  settings.p1sym = 'X';
+  settings.p2sym = 'O';
+  settings.defaultDiff = 'medium';
+  document.getElementById('toggle-sound').classList.remove('on');
+  document.getElementById('toggle-history').classList.add('on');
+  setSymbol(1,'X'); setSymbol(2,'O');
+  setDefaultDiff('medium');
+}
+</script>
+</body>
+</html>
